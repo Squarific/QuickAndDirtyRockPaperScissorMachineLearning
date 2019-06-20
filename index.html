@@ -1,0 +1,98 @@
+<html>
+  <head>
+    <!-- Load the latest version of TensorFlow.js -->
+    <script src="https://unpkg.com/@tensorflow/tfjs"></script>
+    <script src="https://unpkg.com/@tensorflow-models/mobilenet"></script>
+  </head>
+  <body>
+    <div id="console"></div>
+    <!-- Load index.js after the content of the page -->
+	<video autoplay playsinline muted id="webcam" width="64" height="64"></video>
+    <script>
+		const webcamElement = document.getElementById('webcam');
+		let net;
+		
+		async function setupWebcam() {
+		  return new Promise((resolve, reject) => {
+			const navigatorAny = navigator;
+			navigator.getUserMedia = navigator.getUserMedia ||
+				navigatorAny.webkitGetUserMedia || navigatorAny.mozGetUserMedia ||
+				navigatorAny.msGetUserMedia;
+			if (navigator.getUserMedia) {
+			  navigator.getUserMedia({video: true},
+				stream => {
+				  webcamElement.srcObject = stream;
+				  webcamElement.addEventListener('loadeddata',  () => resolve(), false);
+				},
+				error => reject());
+			} else {
+			  reject();
+			}
+		  });
+		}
+
+		async function app() {
+		  await setupWebcam();
+		  
+		  model = tf.sequential();
+		  
+		  model.add(tf.layers.flatten({
+			inputShape: [64, 64, 1]
+		  }));
+		  
+		  model.add(tf.layers.dense({
+			units: 256,
+			activation: 'relu'
+		  }));
+		  
+		  model.add(tf.layers.dense({
+			units: 10,
+			activation: 'softmax'
+	      }));
+		  
+		  model.compile({
+			optimizer: tf.train.adam(),
+			loss: tf.metrics.sparseCategoricalAccuracy,
+			metrics: ['accuracy']
+		  });
+		  
+		  // Convert to grayscale
+		  let dotLayer = tf.layers.dot({axes: -1});
+		  let rgb_weights = tf.mul(tf.ones([4096, 3]), [0.2989, 0.5870, 0.1140]);
+		  
+		  let image = tf.browser.fromPixels(webcamElement).reshape([4096, 3]);
+		  let grayscale = dotLayer.apply([image, rgb_weights]);
+		  
+		  grayscale.print();
+		  
+		  /*await model.fit(training_images, training_labels, {
+			epochs: 5
+		  });*/
+
+		  while (true) {
+		  
+/*
+			document.getElementById('console').innerText = `
+			  prediction: ${result[0].className}\n
+			  probability: ${result[0].probability}
+			`;
+	*/		
+			
+			// Convert to grayscale
+			let dotLayer = tf.layers.dot({axes: -1});
+			let rgb_weights = tf.fill([4096, 3], [0.2989, 0.5870, 0.1140]);
+			let image = tf.browser.fromPixels(webcamElement).reshape([4096, 3]); 
+			let grayscale = dotLayer.apply([image, rgb_weights]);
+			
+			console.log(model.predict([grayscale]).print());
+
+			// Give some breathing room by waiting for the next animation frame to
+			// fire.
+			await tf.nextFrame();
+		  }
+		}
+
+		app();
+	</script>
+  </body>
+</html>
