@@ -7,7 +7,7 @@
   <body>
     <div id="console"></div>
     <!-- Load index.js after the content of the page -->
-	<video autoplay playsinline muted id="webcam" width="64" height="64"></video>
+	<video autoplay playsinline muted id="webcam" width="640" height="480"></video>
     <script>
 		const webcamElement = document.getElementById('webcam');
 		let net;
@@ -36,12 +36,9 @@
 		  
 		  model = tf.sequential();
 		  
-		  model.add(tf.layers.flatten({
-			inputShape: [64, 64, 1]
-		  }));
-		  
 		  model.add(tf.layers.dense({
 			units: 256,
+			inputShape: [640 * 480],
 			activation: 'relu'
 		  }));
 		  
@@ -58,14 +55,12 @@
 		  
 		  // Convert to grayscale
 		  let dotLayer = tf.layers.dot({axes: -1});
-		  let rgb_weights = tf.mul(tf.ones([4096, 3]), [0.2989, 0.5870, 0.1140]);
-		  
-		  let image = tf.browser.fromPixels(webcamElement).reshape([4096, 3]);
-		  let grayscale = dotLayer.apply([image, rgb_weights]);
-		  
-		  grayscale.print();
-		  
-		  /*await model.fit(training_images, training_labels, {
+		  let rgb_weights = tf.mul(tf.ones([640 * 480, 3]), [0.2989, 0.5870, 0.1140]);
+		  let image = tf.browser.fromPixels(webcamElement);
+		  let reshaped_image = image.reshape([640 * 480, 3]);
+		  let grayscale = tf.reshape(dotLayer.apply([reshaped_image, rgb_weights]), [-1]);
+		  		  
+		  /*await model.fit(grayscale, [1], {
 			epochs: 5
 		  });*/
 
@@ -79,12 +74,22 @@
 	*/		
 			
 			// Convert to grayscale
-			let dotLayer = tf.layers.dot({axes: -1});
-			let rgb_weights = tf.fill([4096, 3], [0.2989, 0.5870, 0.1140]);
-			let image = tf.browser.fromPixels(webcamElement).reshape([4096, 3]); 
-			let grayscale = dotLayer.apply([image, rgb_weights]);
+		  let dotLayer = tf.layers.dot({axes: -1});
+		  let rgb_weights = tf.mul(tf.ones([640 * 480, 3]), [0.2989, 0.5870, 0.1140]);
+		  let image = tf.browser.fromPixels(webcamElement);
+		  let reshaped_image = image.reshape([640 * 480, 3]);
+		  let grayscale_unreshaped = dotLayer.apply([reshaped_image, rgb_weights]);
+		  let grayscale = tf.reshape(grayscale_unreshaped, [-1]);
+		  //let grayscale = dotLayer.apply([reshaped_image, rgb_weights]);
+
+		  grayscale_unreshaped.print();
+		  grayscale.print();
 			
-			console.log(model.predict([grayscale]).print());
+	console.log(grayscale.shape);
+
+			//var data = tf.tensor2d(grayscale, [1, grayscale.length]);
+			
+			console.log(model.predict([grayscale], {batchSize: 1, verbose: true}).print());
 
 			// Give some breathing room by waiting for the next animation frame to
 			// fire.
